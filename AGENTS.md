@@ -45,27 +45,18 @@ removes the rest.
 
 <!-- END MANAGED ARCHITECTURE BASELINE -->
 
-## What this repository is
+## Purpose and boundaries
 
-Registered, not implemented. It holds these governance files and nothing else.
-`main` had no commits until the one that added them.
+This public repository owns AI Portal application source, tests, and immutable image builds. The approved cross-repository initiative is [`architecture/initiatives/active/ai-portal.md`](https://github.com/hannosirkel/architecture/blob/main/initiatives/active/ai-portal.md). Its first release is portal/chat; Scratch hub and Scratch AI are separate later initiatives.
 
-The intended product is `ai.future.ee`: LibreChat integration, and the agentic
-and manual Scratch playground.
+`deploys` owns Kubernetes workload manifests and promoted image digests. Orange owns Argo CD Applications, Access/tunnel integration, backup, and monitoring. Private inventory owns live identities and non-secret site values. Secret values enter workloads only through OpenBao and ESO. Never commit a family identity, group membership, provider key, session, or private infrastructure value here.
 
-## Rules specific to this repository
+## Development
 
-- **Do not start the build from here.** Implementation starts as a separate
-  approved initiative. Read the
-  [planned record](https://github.com/hannosirkel/architecture/blob/main/initiatives/planned/ai-portal/README.md)
-  first.
-- **Do not scaffold.** No application directory, no package manifest, no
-  placeholder code, no container definition. An empty frame invites a build no
-  one approved.
-- **It is public.** It must never hold a family identity, group membership, a
-  provider key, an OAuth session, or a private infrastructure variable.
-- **It owns nothing yet.** `deploys` will own its deployable desired state, and
-  `orange` its Argo CD `Application` object.
-- **Branch from now on.** The initial commit went to `main` directly under the
-  empty-repository exception, because a branch cannot exist before the first
-  commit. Every later change works by branch and pull request.
+This foundation branch contains documentation only; code and its exact local test commands arrive with the first implementation PR. For a documentation edit, run `git diff --check` and the repository's Documentation CI. Run `habit-hooks --file <changed-file>` before declaring an edit done. Read `docs/current/README.md` and `docs/decisions/` before changing a boundary.
+
+The launcher must enforce authorization on direct `/chat` and future `/scratch` requests. Never treat hidden cards, `Cf-Access-*` headers from an arbitrary client, or cookie `Path` as sufficient authorization. Serve future user-uploaded project bytes only as whole attachments with `nosniff` and sandbox CSP; no individual asset URLs on the shared origin.
+
+## Branches and releases
+
+Branch from a freshly fetched `origin/main` in `~/app/.worktrees/ai-portal/<task>`. Do not change `main` directly. Open a PR with relevant behavior tests. Build an immutable image here, then promote its digest through `deploys`; never deploy by a durable manual cluster edit. Public DNS publication has a separate operator gate.
