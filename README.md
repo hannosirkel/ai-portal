@@ -1,49 +1,22 @@
-# ai-portal
+# AI Portal
 
-Registered, not implemented. This repository holds its governance files and no
-product code. Its `main` had no commits before the one that added them.
+AI Portal is the application-source repository for a family AI workspace. The first release is a launcher and LibreChat at `/` and `/chat`. Separate planned releases add a Scratch-compatible project hub at `/scratch`, then controlled AI project edits.
 
-The intended product is `ai.future.ee` and its subprojects: LibreChat
-integration, and the agentic and manual Scratch playground.
+The cross-repository [active initiative](https://github.com/hannosirkel/architecture/blob/main/initiatives/active/ai-portal.md) defines the release gates and acceptance behavior. No runtime or image has shipped from this repository yet.
 
-## What it owns
-
-Nothing yet. When the product exists, this repository will own its source, its
-tests, and its image build.
-
-## What it does not own
+## Ownership
 
 | Concern | Owner |
 | --- | --- |
-| Deployable desired state | `deploys` |
-| Argo CD `Application` objects and cluster bootstrap | `orange` |
-| Live private values | `orange-inventory` |
-| Reusable agent skills | `myskills` |
-| Standards, profiles, and the catalogue | [`architecture`](https://github.com/hannosirkel/architecture) |
+| Launcher, prefix proxy, Scratch source, tests, image builds | This repository |
+| Kubernetes workloads and pinned image digests | `deploys` |
+| Argo CD Applications, cluster integration, backup, monitoring | `orange` |
+| Live identities and non-secret site choices | `orange-inventory` |
+| Secret values | OpenBao through Orange's sanctioned ESO path; never Git |
+| Cross-repository contract and gate evidence | `architecture` |
 
-## Visibility
+This repository is public. It contains no family names or addresses, group membership, provider keys, OAuth sessions, or private infrastructure values. See [current state](docs/current/README.md), the [portal boundary decision](docs/decisions/001-portal-boundaries.md), and [agent instructions](AGENTS.md).
 
-Public, and it must stay safe to publish. It must never hold a family identity,
-group membership, a provider key, an OAuth session, or a private infrastructure
-variable.
+## Development
 
-## Developing and testing
-
-There is nothing to build, run, or test. The repository declares no language, so
-no language gate applies to it.
-
-## Starting the implementation
-
-Implementation starts as a separate approved initiative, not from this
-repository. The planned record is
-[`initiatives/planned/ai-portal/`](https://github.com/hannosirkel/architecture/blob/main/initiatives/planned/ai-portal/README.md).
-It states the product boundary, the ownership split, and the steps that open the
-real initiative.
-
-## Where things live
-
-| Question | Answer |
-| --- | --- |
-| How do I work here? | [`AGENTS.md`](AGENTS.md) |
-| What is planned? | the [planned record](https://github.com/hannosirkel/architecture/blob/main/initiatives/planned/ai-portal/README.md) |
-| What rules apply everywhere? | [`architecture`](https://github.com/hannosirkel/architecture) |
+The source and test commands will be added with the first implementation PR. Until then, documentation and repository governance are the only artifacts to validate. Application releases will build immutable images and promote their digests through `deploys`; this repository never deploys workloads directly.

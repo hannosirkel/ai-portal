@@ -1,0 +1,13 @@
+# 001 — Portal routing and authorization boundaries
+
+**Status:** Accepted for the portal/chat implementation. The Scratch hub and Scratch AI have separate release gates.
+
+**Context:** A small launcher must route LibreChat under `/chat` and later admit a Scratch project hub under `/scratch`. The application origin is shared, so a user-uploaded project that executes script could call chat APIs as the same signed-in user. Cloudflare Access checks the enumerated account list, while Authentik supplies application roles through OIDC. Neither launcher-card visibility nor cookie path is an authorization boundary.
+
+**Decision:** Use one small Python ASGI portal service for launcher and path routing. It validates the established identity path, enforces entitlement on every direct application request, strips untrusted identity headers, and forwards `/chat` to a pinned LibreChat release with the prefix handling that release requires. The proxy rewrites LibreChat's known authentication cookies to `Path=/chat`, forwards streaming responses without buffering, sets route-specific CSP and other security headers, and applies request-size limits. `/scratch` stays closed until its separate hub is verified.
+
+Keep Authentik on a separate Access-gated origin. The union of private `admin` and `user` account lists gates both hostnames at Cloudflare Access. Those private labels also assign Authentik groups; LibreChat validates and synchronizes roles from the resulting OIDC claims. An Access-admitted account without either group receives the restrictive baseline role. Admin elevation remains explicit and separate from ordinary role sync. No live identities or group memberships are stored here.
+
+Use OpenRouter as the only remote provider, with the key delivered server-side through OpenBao and ESO. The browser never receives a provider key. Enforced model specifications, endpoint restrictions, role permissions, and upstream key limits must all be tested on tampered requests; hiding a model or tool in the UI does not prove denial. LibreChat's custom-role permission state needs a repeatable reconciliation path rather than unrecorded admin-panel edits.
+
+**Consequences:** The proxy is on the authentication and upload security path and needs direct-path, forged-header, subpath, cookie, streaming, and content-response tests. No individually addressable uploaded project asset may be served from this origin. The first release can show a disabled Scratch destination but cannot expose `/scratch` content. Any chat-hostname fallback changes the exposure boundary and returns to the operator before publication.
