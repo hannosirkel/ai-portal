@@ -3,7 +3,16 @@ name = "ai-portal"
 version = "0.1.0"
 requires-python = ">=3.13"
 description = "Family AI Portal launcher and chat proxy"
-dependencies = ["PyJWT[crypto]==2.14.0"]
+dependencies = [
+  "PyJWT[crypto]==2.14.0",
+  "Authlib==1.7.2",
+  "Starlette==1.6.0",
+  "itsdangerous==2.2.0",
+  "uvicorn==0.49.0",
+]
+
+[project.optional-dependencies]
+test = ["httpx==0.28.1"]
 
 [build-system]
 requires = ["setuptools==80.9.0"]
