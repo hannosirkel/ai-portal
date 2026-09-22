@@ -10,7 +10,7 @@ Governed by [`architecture`](https://github.com/hannosirkel/architecture).
 | --- | --- |
 | Profile | `application-public` |
 | Visibility | declared public, currently public |
-| Languages | none |
+| Languages | python |
 
 **Standards that apply here.** Read a standard before you change something it
 governs.
@@ -21,6 +21,7 @@ governs.
 - [Repository contract](https://github.com/hannosirkel/architecture/blob/main/standards/repository-contract.md) — required files, profiles, skills
 - [Work routing](https://github.com/hannosirkel/architecture/blob/main/standards/work-routing.md) — where a change starts, and where a working plan belongs
 - [Planning](https://github.com/hannosirkel/architecture/blob/main/standards/planning.md) — how a plan row is sized, the pull-request size gate
+- Language standards: [python](https://github.com/hannosirkel/architecture/blob/main/standards/languages/python.md)
 
 **Never commit to a default branch.** Work in `~/app/.worktrees/ai-portal/<task>`.
 Branch from `origin/main`. Open a pull request.
@@ -53,7 +54,7 @@ This public repository owns AI Portal application source, tests, and immutable i
 
 ## Development
 
-This foundation branch contains documentation only; code and its exact local test commands arrive with the first implementation PR. For a documentation edit, run `git diff --check` and the repository's Documentation CI. Run `habit-hooks --file <changed-file>` before declaring an edit done. Read `docs/current/README.md` and `docs/decisions/` before changing a boundary.
+Run `ruff check .`, `ruff format --check src tests`, and `PYTHONPATH=src python3 -m unittest discover -s tests -p "test_*.py"` for Python changes. For a documentation edit, run `git diff --check` and the repository's Documentation CI. Run `habit-hooks --file <changed-file>` before declaring an edit done. Read `docs/current/README.md` and `docs/decisions/` before changing a boundary.
 
 The launcher must enforce authorization on direct `/chat` and future `/scratch` requests. Never treat hidden cards, `Cf-Access-*` headers from an arbitrary client, or cookie `Path` as sufficient authorization. Serve future user-uploaded project bytes only as whole attachments with `nosniff` and sandbox CSP; no individual asset URLs on the shared origin.
 
