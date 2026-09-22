@@ -1,11 +1,13 @@
 import unittest
 
+import httpx
 from starlette.responses import RedirectResponse
 from starlette.testclient import TestClient
 
 from portal.access import AccessDenied, AccessIdentity
 from portal.app import create_app
 from portal.config import PortalConfig, config_from_environ
+from portal.proxy import ChatProxy
 
 
 class StubAccessVerifier:
@@ -37,7 +39,7 @@ class StubOIDCClient:
 
 
 class PortalAppTests(unittest.TestCase):
-    def make_client(self, oidc=None):
+    def make_client(self, oidc=None, chat_proxy=None):
         oidc = oidc or StubOIDCClient()
         app = create_app(
             PortalConfig(
@@ -49,6 +51,7 @@ class PortalAppTests(unittest.TestCase):
             ),
             verifier=StubAccessVerifier(),
             oidc_client=oidc,
+            chat_proxy=chat_proxy,
         )
         return TestClient(app, base_url="https://testserver"), oidc
 
@@ -103,6 +106,36 @@ class PortalAppTests(unittest.TestCase):
             ).status_code,
             302,
         )
+
+    def test_signed_in_chat_request_reaches_upstream_without_identity_headers(self):
+        observed = []
+
+        def upstream(request):
+            observed.append(request)
+            return httpx.Response(200, stream=httpx.ByteStream(b"chat ready"))
+
+        peer = httpx.AsyncClient(transport=httpx.MockTransport(upstream))
+        try:
+            proxy = ChatProxy("http://librechat:3080", client=peer)
+            client, _ = self.make_client(chat_proxy=proxy)
+            client.get("/auth/callback", headers=self.access_headers())
+            response = client.get(
+                "/chat/api/test",
+                headers={
+                    **self.access_headers(),
+                    "X-Authentik-Groups": "ai-portal-admin",
+                },
+            )
+        finally:
+            import asyncio
+
+            asyncio.run(peer.aclose())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.text, "chat ready")
+        self.assertEqual(observed[0].url.path, "/chat/api/test")
+        self.assertNotIn("cf-access-jwt-assertion", observed[0].headers)
+        self.assertNotIn("x-authentik-groups", observed[0].headers)
+        self.assertNotIn("portal_session", observed[0].headers.get("cookie", ""))
 
     def test_callback_rejects_mismatched_email(self):
         client, _ = self.make_client(StubOIDCClient(email="other@example.com"))
@@ -164,6 +197,7 @@ class PortalAppTests(unittest.TestCase):
             "PORTAL_SESSION_SECRET": "s" * 40,
             "PORTAL_ACCESS_ISSUER": "https://team.cloudflareaccess.com",
             "PORTAL_ACCESS_AUDIENCE": "audience",
+            "PORTAL_CHAT_UPSTREAM_ORIGIN": "http://librechat:3080",
         }
         self.assertEqual(config_from_environ(values).access_audience, "audience")
         del values["PORTAL_SESSION_SECRET"]

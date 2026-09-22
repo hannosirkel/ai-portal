@@ -1,6 +1,7 @@
 """Access-gated ASGI entry point and Authentik OIDC sign-in."""
 
 from collections.abc import Mapping
+from contextlib import asynccontextmanager
 from typing import Protocol
 from urllib.parse import urlsplit
 
@@ -17,6 +18,7 @@ from portal.access import AccessDenied, AccessIdentity, AccessVerifier
 from portal.auth import permitted
 from portal.config import PortalConfig
 from portal.oidc import OIDCRejected, PortalSession, session_from_claims
+from portal.proxy import ChatProxy
 
 
 class OIDCClient(Protocol):
@@ -51,11 +53,16 @@ class PortalRuntime:
     """Request handlers for the Access and Authentik security boundary."""
 
     def __init__(
-        self, config: PortalConfig, verifier: AccessVerifier, oidc_client: OIDCClient
+        self,
+        config: PortalConfig,
+        verifier: AccessVerifier,
+        oidc_client: OIDCClient,
+        chat_proxy: ChatProxy | None,
     ) -> None:
         self.config = config
         self.verifier = verifier
         self.oidc_client = oidc_client
+        self.chat_proxy = chat_proxy
 
     def access_identity(self, request: Request) -> AccessIdentity | None:
         try:
@@ -117,7 +124,9 @@ class PortalRuntime:
         if path == "/":
             return HTMLResponse("<main><h1>AI Portal</h1></main>")
         if path == "/chat" or path.startswith("/chat/"):
-            return PlainTextResponse("Chat is not deployed", status_code=503)
+            if self.chat_proxy is None:
+                return PlainTextResponse("Chat is not deployed", status_code=503)
+            return await self.chat_proxy.forward(request)
         return PlainTextResponse("Not found", status_code=404)
 
 
@@ -126,6 +135,7 @@ def create_app(
     *,
     verifier: AccessVerifier | None = None,
     oidc_client: OIDCClient | None = None,
+    chat_proxy: ChatProxy | None = None,
 ) -> Starlette:
     """Build the portal with injectible protocol peers for behavior tests."""
     if verifier is None:
@@ -143,15 +153,31 @@ def create_app(
             ),
             client_kwargs={"scope": "openid profile email groups"},
         )
-    runtime = PortalRuntime(config, verifier, oidc_client)
+    if chat_proxy is None and config.chat_upstream_origin:
+        chat_proxy = ChatProxy(config.chat_upstream_origin)
+    runtime = PortalRuntime(config, verifier, oidc_client, chat_proxy)
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        try:
+            yield
+        finally:
+            if chat_proxy is not None:
+                await chat_proxy.aclose()
+
     app = Starlette(
+        lifespan=lifespan,
         routes=[
             Route("/healthz", runtime.health, methods=["GET"]),
             Route("/auth/login", runtime.login, methods=["GET"]),
             Route("/auth/callback", runtime.callback, methods=["GET"]),
             Route("/auth/logout", runtime.logout, methods=["POST"]),
-            Route("/{path:path}", runtime.application, methods=["GET", "HEAD", "POST"]),
-        ]
+            Route(
+                "/{path:path}",
+                runtime.application,
+                methods=["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            ),
+        ],
     )
     app.add_middleware(
         SessionMiddleware,
