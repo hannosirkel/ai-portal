@@ -1,10 +1,7 @@
 name: Validate
 
-# This repository is registered and not yet implemented: it holds a README and
-# its governance files. The gates are scoped to that: secret scanning, workflow
-# linting, and documentation checks. It declares no language, so it takes no
-# language linter — inventing one here would gate nothing and report a pass for
-# scanning nothing. Add the language gate when the language arrives, not before.
+# Secret scanning, workflow linting, documentation checks, and Python behavior
+# tests gate source changes.
 
 on:
   pull_request:
@@ -16,6 +13,27 @@ permissions:
   contents: read
 
 jobs:
+  python:
+    name: Python
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+      - name: Install pinned Ruff
+        run: python -m pip install ruff==0.16.4
+      - name: Lint Python
+        run: ruff check .
+      - name: Check Python formatting
+        run: ruff format --check src tests
+      - name: Test authorization behavior
+        run: PYTHONPATH=src python -m unittest discover -s tests -p 'test_*.py'
+
   validate:
     runs-on: ubuntu-24.04
     steps:
