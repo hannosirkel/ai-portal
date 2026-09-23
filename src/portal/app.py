@@ -11,12 +11,13 @@ from starlette.applications import Starlette
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.requests import Request
-from starlette.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from starlette.responses import PlainTextResponse, RedirectResponse
 from starlette.routing import Route
 
 from portal.access import AccessDenied, AccessIdentity, AccessVerifier
 from portal.auth import permitted
 from portal.config import PortalConfig
+from portal.launcher import launcher_response, stylesheet_response
 from portal.oidc import OIDCRejected, PortalSession, session_from_claims
 from portal.proxy import ChatProxy
 
@@ -122,7 +123,11 @@ class PortalRuntime:
         if not permitted(principal, path):
             return PlainTextResponse("Forbidden", status_code=403)
         if path == "/":
-            return HTMLResponse("<main><h1>AI Portal</h1></main>")
+            return launcher_response(
+                session.email, can_chat=permitted(principal, "/chat")
+            )
+        if path == "/assets/launcher.css":
+            return stylesheet_response()
         if path == "/chat" or path.startswith("/chat/"):
             if self.chat_proxy is None:
                 return PlainTextResponse("Chat is not deployed", status_code=503)

@@ -107,6 +107,43 @@ class PortalAppTests(unittest.TestCase):
             302,
         )
 
+    def test_launcher_shows_available_chat_and_reserved_scratch(self):
+        client, _ = self.make_client()
+        client.get("/auth/callback", headers=self.access_headers())
+        response = client.get("/", headers=self.access_headers())
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("What would you like to work on?", response.text)
+        self.assertIn('href="/chat/"', response.text)
+        self.assertIn("Scratch Playground", response.text)
+        self.assertIn("Coming later", response.text)
+        self.assertNotIn('href="/scratch', response.text)
+        self.assertIn("person@example.com", response.text)
+        self.assertIn("style-src 'self'", response.headers["content-security-policy"])
+        self.assertEqual(response.headers["x-content-type-options"], "nosniff")
+
+    def test_launcher_does_not_offer_chat_without_group(self):
+        client, _ = self.make_client(StubOIDCClient(groups=[]))
+        client.get("/auth/callback", headers=self.access_headers())
+        response = client.get("/", headers=self.access_headers())
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('href="/chat/"', response.text)
+        self.assertIn("Access unavailable", response.text)
+
+    def test_launcher_stylesheet_requires_access_and_session(self):
+        client, _ = self.make_client()
+        self.assertEqual(client.get("/assets/launcher.css").status_code, 403)
+        response = client.get(
+            "/assets/launcher.css",
+            headers=self.access_headers(),
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 302)
+        client.get("/auth/callback", headers=self.access_headers())
+        response = client.get("/assets/launcher.css", headers=self.access_headers())
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("text/css", response.headers["content-type"])
+        self.assertIn(".destination", response.text)
+
     def test_signed_in_chat_request_reaches_upstream_without_identity_headers(self):
         observed = []
 
