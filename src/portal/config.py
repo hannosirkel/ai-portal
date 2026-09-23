@@ -14,6 +14,7 @@ class PortalConfig:
     session_secret: str
     access_issuer: str = ""
     access_audience: str = ""
+    chat_upstream_origin: str = ""
 
     def __post_init__(self) -> None:
         public = urlsplit(self.public_origin)
@@ -53,6 +54,7 @@ def config_from_environ(env: Mapping[str, str]) -> PortalConfig:
         "PORTAL_SESSION_SECRET",
         "PORTAL_ACCESS_ISSUER",
         "PORTAL_ACCESS_AUDIENCE",
+        "PORTAL_CHAT_UPSTREAM_ORIGIN",
     )
     missing = [name for name in names if not env.get(name)]
     if missing:
