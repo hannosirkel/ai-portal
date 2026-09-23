@@ -1,6 +1,11 @@
 # Current state
 
-AI Portal has an Access assertion verifier and an ASGI OIDC sign-in entry point, but no deployable image, chat proxy, database, or deployment yet. The first approved implementation slice is portal/chat. Scratch hub and Scratch AI are separate later initiatives, so `/scratch` remains unavailable until the hub's own acceptance gate.
+AI Portal has an Access assertion verifier and an ASGI OIDC sign-in entry point.
+Its pinned, non-root image build runs a readiness smoke test on pull requests
+and publishes an immutable GHCR digest from `main`. No image digest has been
+promoted to the cluster yet. The first approved implementation slice is
+portal/chat. Scratch hub and Scratch AI are separate later initiatives, so
+`/scratch` remains unavailable until the hub's own acceptance gate.
 
 The server-rendered launcher serves `/` with a chat destination and a disabled
 Scratch card. Its stylesheet is packaged with the Python application and is
@@ -27,3 +32,8 @@ Run the app with `uvicorn portal.server:app`. Its required environment is
 `PORTAL_OIDC_CLIENT_SECRET`, `PORTAL_SESSION_SECRET`, `PORTAL_ACCESS_ISSUER`,
 and `PORTAL_ACCESS_AUDIENCE`. The session key and OIDC client secret must enter
 through OpenBao/ESO; the other values come from the deployment contract.
+
+The container listens on port 8080 as UID/GID 10001. An HTTP readiness probe
+to `/healthz` must send the configured public hostname in `Host`; the app's
+trusted-host middleware rejects a pod-IP host. The image workflow records the
+published digest in its run summary for an approved `deploys` promotion.

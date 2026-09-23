@@ -19,4 +19,9 @@ This repository is public. It contains no family names or addresses, group membe
 
 ## Development
 
-The source and test commands will be added with the first implementation PR. Until then, documentation and repository governance are the only artifacts to validate. Application releases will build immutable images and promote their digests through `deploys`; this repository never deploys workloads directly.
+Run `ruff check .`, `ruff format --check src tests`, and
+`PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py'` for Python
+changes. Pull requests also build the pinned container image and start its
+readiness endpoint. Main-branch builds publish a digest-addressed image to
+GHCR. Promotion of that digest belongs in `deploys`; this repository never
+deploys workloads directly.

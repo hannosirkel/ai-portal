@@ -1,0 +1,103 @@
+name: Image
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        # actions/checkout v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Buildx
+        # docker/setup-buildx-action v4.3.0
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e
+      - name: Build local image
+        run: docker buildx build --platform linux/amd64 --load --tag ai-portal:smoke .
+      - name: Start non-root portal and check readiness
+        run: |
+          set -euo pipefail
+          docker run --detach --rm --name portal-smoke \
+            --publish 127.0.0.1:18080:8080 \
+            --env PORTAL_PUBLIC_ORIGIN=https://portal.example.com \
+            --env PORTAL_OIDC_ISSUER=https://id.example.com/application/o/portal/ \
+            --env PORTAL_OIDC_CLIENT_ID=example-client \
+            --env PORTAL_OIDC_CLIENT_SECRET=example-only \
+            --env PORTAL_SESSION_SECRET=example-session-secret-with-forty-characters \
+            --env PORTAL_ACCESS_ISSUER=https://example.cloudflareaccess.com \
+            --env PORTAL_ACCESS_AUDIENCE=example-audience \
+            --env PORTAL_CHAT_UPSTREAM_ORIGIN=http://chat:3080 \
+            ai-portal:smoke
+          trap 'docker rm --force portal-smoke >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent --show-error \
+              --header 'Host: portal.example.com' \
+              http://127.0.0.1:18080/healthz | grep --quiet --line-regexp ok; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs portal-smoke
+          exit 1
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out release revision
+        # actions/checkout v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Buildx
+        # docker/setup-buildx-action v4.3.0
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e
+      - name: Authenticate to GHCR
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io \
+            --username "$GITHUB_ACTOR" --password-stdin
+      - name: Publish immutable image
+        id: build
+        env:
+          IMAGE: ghcr.io/hannosirkel/ai-portal
+        run: |
+          set -euo pipefail
+          metadata="$RUNNER_TEMP/image-metadata.json"
+          docker buildx build --platform linux/amd64 \
+            --provenance=mode=min --sbom=true \
+            --label org.opencontainers.image.source=https://github.com/hannosirkel/ai-portal \
+            --tag "${IMAGE}:sha-${GITHUB_SHA}" --push \
+            --metadata-file "$metadata" .
+          digest="$(jq -er '."containerimage.digest"' "$metadata")"
+          printf '%s' "$digest" | grep -Eq '^sha256:[0-9a-f]{64}$'
+          echo "digest=$digest" >>"$GITHUB_OUTPUT"
+          echo "Published ${IMAGE}@${digest}" >>"$GITHUB_STEP_SUMMARY"
+      - name: Scan published image
+        # aquasecurity/trivy-action v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          image-ref: ghcr.io/hannosirkel/ai-portal@${{ steps.build.outputs.digest }}
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL
+          scanners: vuln
+          version: v0.70.0
