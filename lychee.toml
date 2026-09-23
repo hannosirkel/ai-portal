@@ -21,3 +21,7 @@ max_retries = 2
 timeout = 20
 
 accept = ["200", "204", "206", "429"]
+
+# The launcher is a server-rendered application template. Its root-relative
+# routes are supplied by Starlette at runtime and tested by the app suite.
+exclude_path = ["(^|/)src/portal/assets/launcher\\.html$"]
