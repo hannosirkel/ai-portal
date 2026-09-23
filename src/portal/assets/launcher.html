@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#ffffff">
+    <title>AI Portal</title>
+    <link rel="stylesheet" href="/assets/launcher.css">
+  </head>
+  <body>
+    <div class="page">
+      <header class="site-header">
+        <a class="brand" href="/" aria-label="AI Portal home">AI Portal</a>
+        <div class="account" aria-label="Signed-in account">
+          <span class="avatar" aria-hidden="true">$initial</span>
+          <span class="account-email">$email</span>
+        </div>
+      </header>
+
+      <main id="main-content" class="main-content">
+        <div class="intro">
+          <h1>What would you like to work on?</h1>
+          <p>A private space for our family to explore, create and get things done with AI.</p>
+        </div>
+
+        <div class="destinations" aria-label="Available spaces">
+          <section class="destination $chat_card_class" aria-labelledby="chat-title">
+            <div class="destination-icon destination-icon--chat" aria-hidden="true">
+              <svg viewBox="0 0 48 48" fill="none" role="presentation">
+                <path d="M38 22.5c0 8-6.5 14.5-14.5 14.5-2.5 0-4.9-.6-7-1.8L9 38l2.8-7.4A14.4 14.4 0 0 1 9 22.5C9 14.5 15.5 8 23.5 8S38 14.5 38 22.5Z" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h2 id="chat-title">LibreChat</h2>
+            <p>Chat with leading AI models for questions, ideas, writing, and more.</p>
+            $chat_action
+          </section>
+
+          <section class="destination destination--future" aria-labelledby="scratch-title">
+            <div class="destination-icon destination-icon--scratch" aria-hidden="true">
+              <svg viewBox="0 0 48 48" fill="none" role="presentation">
+                <path d="m17 14-10 10 10 10M31 14l10 10-10 10M28 9l-8 30" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h2 id="scratch-title">Scratch Playground</h2>
+            <p>A space to experiment with ideas, tools and creative projects.</p>
+            <span class="action action--disabled" aria-disabled="true">Coming later</span>
+          </section>
+        </div>
+      </main>
+
+      <footer class="site-footer">
+        <div class="footer-account">
+          <span>Account</span>
+          <span class="footer-divider" aria-hidden="true"></span>
+          <form action="/auth/logout" method="post">
+            <button type="submit">Sign out</button>
+          </form>
+        </div>
+        <span>AI Portal</span>
+      </footer>
+    </div>
+  </body>
+</html>
