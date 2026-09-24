@@ -59,6 +59,18 @@ def _safe_response_header(name: str, connection_tokens: set[str]) -> bool:
     )
 
 
+def _upload_route(path: str) -> bool:
+    """Deny file ingestion while the first chat release has transient storage."""
+    path = path.lower()  # Express matches these upstream routes case-insensitively.
+    return (
+        path == "/chat/api/files"
+        or path.startswith("/chat/api/files/")
+        or path == "/chat/api/convos/import"
+        or path == "/chat/api/skills"
+        or path.startswith("/chat/api/skills/")
+    )
+
+
 class ChatProxy:
     """Forward /chat requests while preserving the LibreChat base path."""
 
@@ -179,6 +191,8 @@ class ChatProxy:
         path = request.scope["path"]
         if path != "/chat" and not path.startswith("/chat/"):
             return PlainTextResponse("Not found", status_code=404)
+        if request.method not in {"GET", "HEAD", "OPTIONS"} and _upload_route(path):
+            return PlainTextResponse("Uploads unavailable", status_code=403)
         body = await self._request_body(request)
         if isinstance(body, PlainTextResponse):
             return body

@@ -17,7 +17,9 @@ class CountingStream(httpx.AsyncByteStream):
 
 
 class ChatProxyTests(unittest.IsolatedAsyncioTestCase):
-    def request(self, path="/chat/api/messages", query=b"", headers=(), body=b""):
+    def request(
+        self, path="/chat/api/messages", query=b"", headers=(), body=b"", method=None
+    ):
         sent = False
 
         async def receive():
@@ -29,7 +31,7 @@ class ChatProxyTests(unittest.IsolatedAsyncioTestCase):
 
         scope = {
             "type": "http",
-            "method": "POST" if body else "GET",
+            "method": method or ("POST" if body else "GET"),
             "scheme": "https",
             "server": ("testserver", 443),
             "path": path,
@@ -128,6 +130,46 @@ class ChatProxyTests(unittest.IsolatedAsyncioTestCase):
             response = await proxy.forward(self.request(body=b"12345"))
             self.assertEqual(response.status_code, 413)
             self.assertEqual(calls, [])
+
+    async def test_upload_entry_points_are_denied_before_upstream(self):
+        calls = []
+
+        def upstream(request):
+            calls.append(request)
+            return httpx.Response(200)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(upstream)) as client:
+            proxy = ChatProxy("http://librechat:3080", client=client)
+            for path in (
+                "/chat/api/files",
+                "/chat/api/files/images",
+                "/chat/api/files/speech/stt",
+                "/chat/API/FILES/speech/STT",
+                "/chat/api/convos/import",
+                "/chat/api/convos/IMPORT",
+                "/chat/api/skills/skill-id/files",
+            ):
+                with self.subTest(path=path):
+                    response = await proxy.forward(
+                        self.request(path=path, body=b"upload", method="POST")
+                    )
+                    self.assertEqual(response.status_code, 403)
+            self.assertEqual(calls, [])
+
+    async def test_file_route_prefix_does_not_block_chat_messages(self):
+        calls = []
+
+        def upstream(request):
+            calls.append(request)
+            return httpx.Response(200)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(upstream)) as client:
+            proxy = ChatProxy("http://librechat:3080", client=client)
+            for path in ("/chat/api/messages", "/chat/api/files-extra"):
+                response = await proxy.forward(self.request(path=path, body=b"text"))
+                self.assertEqual(response.status_code, 200)
+                await response.background()
+            self.assertEqual(len(calls), 2)
 
     async def test_proxy_does_not_buffer_streaming_response(self):
         stream = CountingStream()

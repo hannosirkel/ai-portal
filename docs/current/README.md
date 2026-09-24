@@ -27,6 +27,12 @@ card is unavailable without that group. `/scratch` stays denied. The chat
 proxy returns 503 until its LibreChat upstream is configured; it is not a
 deployed chat service.
 
+The first chat release has transient LibreChat upload storage. The proxy
+rejects writes to LibreChat's file and skill routes and conversation import,
+including the speech-to-text upload route, before forwarding a request body.
+These routes need persistent storage and a separate release review before they
+can be enabled.
+
 Run the app with `uvicorn portal.server:app`. Its required environment is
 `PORTAL_PUBLIC_ORIGIN`, `PORTAL_OIDC_ISSUER`, `PORTAL_OIDC_CLIENT_ID`,
 `PORTAL_OIDC_CLIENT_SECRET`, `PORTAL_SESSION_SECRET`, `PORTAL_ACCESS_ISSUER`,
