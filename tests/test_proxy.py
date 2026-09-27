@@ -18,7 +18,12 @@ class CountingStream(httpx.AsyncByteStream):
 
 class ChatProxyTests(unittest.IsolatedAsyncioTestCase):
     def request(
-        self, path="/chat/api/messages", query=b"", headers=(), body=b"", method=None
+        self,
+        path="/chat/api/messages",
+        query=b"",
+        headers=(),
+        body=b"",
+        method=None,
     ):
         sent = False
 
@@ -64,7 +69,7 @@ class ChatProxyTests(unittest.IsolatedAsyncioTestCase):
             "other=value; Secure; Path=/chat",
         )
 
-    async def test_proxy_preserves_prefix_query_and_strips_identity_headers(self):
+    async def test_proxy_strips_prefix_query_and_identity_headers(self):
         observed = []
 
         def upstream(request):
@@ -94,7 +99,7 @@ class ChatProxyTests(unittest.IsolatedAsyncioTestCase):
             )
             response = await proxy.forward(request)
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(observed[0].url.path, "/chat/api/messages")
+            self.assertEqual(observed[0].url.path, "/api/messages")
             self.assertEqual(observed[0].url.query, b"conversation=one")
             for name in (
                 "cf-access-jwt-assertion",
@@ -117,6 +122,75 @@ class ChatProxyTests(unittest.IsolatedAsyncioTestCase):
                 "script-src 'self'", response.headers["content-security-policy"]
             )
             await response.background()
+
+    async def test_chat_page_assets_and_api_use_librechat_root_paths(self):
+        seen = []
+
+        def upstream(request):
+            seen.append(request.url.path)
+            return httpx.Response(200, content=b"ok")
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(upstream)) as client:
+            proxy = ChatProxy("http://librechat:3080", client=client)
+            for path in (
+                "/chat",
+                "/chat/",
+                "/chat/assets/index.js",
+                "/chat/api/config",
+            ):
+                response = await proxy.forward(self.request(path=path))
+                self.assertEqual(response.status_code, 200)
+                await response.background()
+        self.assertEqual(seen, ["/", "/", "/assets/index.js", "/api/config"])
+
+    async def test_encoded_chat_prefix_is_rejected_before_upstream(self):
+        seen = []
+
+        def upstream(request):
+            seen.append(request.url.path)
+            return httpx.Response(200)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(upstream)) as client:
+            proxy = ChatProxy("http://librechat:3080", client=client)
+            request = self.request(path="/chat/api/messages")
+            request.scope["raw_path"] = b"/%63hat/api/messages"
+            response = await proxy.forward(request)
+            self.assertEqual(response.status_code, 404)
+        self.assertEqual(seen, [])
+
+    async def test_chat_csp_allows_only_pinned_inline_bootstrap_scripts(self):
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: httpx.Response(200))
+        ) as client:
+            proxy = ChatProxy("http://librechat:3080", client=client)
+            response = await proxy.forward(self.request(path="/chat/"))
+            csp = response.headers["content-security-policy"]
+            self.assertIn("'sha256-ApRfxd0rLedfnw6ZDBJ3VtMvEqlMCVS8OkY8rahs7+Q='", csp)
+            self.assertIn("'sha256-oWye3rCVXoUhqUJ9AiI+/t+rzdB/PSKIhkv0zyf495w='", csp)
+            self.assertNotIn(
+                "'unsafe-inline'", csp.split("script-src", 1)[1].split(";", 1)[0]
+            )
+            await response.background()
+
+    async def test_only_chat_api_bearer_authorization_reaches_librechat(self):
+        seen = []
+
+        def upstream(request):
+            seen.append(request.headers.get("authorization"))
+            return httpx.Response(200)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(upstream)) as client:
+            proxy = ChatProxy("http://librechat:3080", client=client)
+            for path, scheme in (
+                ("/chat/api/messages", "Bearer librechat-token"),
+                ("/chat/api/messages", "Basic unrelated-token"),
+                ("/chat/assets/index.js", "Bearer librechat-token"),
+            ):
+                response = await proxy.forward(
+                    self.request(path=path, headers=[("Authorization", scheme)])
+                )
+                await response.background()
+        self.assertEqual(seen, ["Bearer librechat-token", None, None])
 
     async def test_oversized_request_is_rejected_before_upstream(self):
         calls = []

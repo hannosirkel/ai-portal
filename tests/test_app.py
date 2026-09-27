@@ -169,7 +169,7 @@ class PortalAppTests(unittest.TestCase):
             asyncio.run(peer.aclose())
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.text, "chat ready")
-        self.assertEqual(observed[0].url.path, "/chat/api/test")
+        self.assertEqual(observed[0].url.path, "/api/test")
         self.assertNotIn("cf-access-jwt-assertion", observed[0].headers)
         self.assertNotIn("x-authentik-groups", observed[0].headers)
         self.assertNotIn("portal_session", observed[0].headers.get("cookie", ""))

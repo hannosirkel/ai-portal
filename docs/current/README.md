@@ -2,9 +2,8 @@
 
 AI Portal has an Access assertion verifier and an ASGI OIDC sign-in entry point.
 Its pinned, non-root image build runs a readiness smoke test on pull requests
-and publishes an immutable GHCR digest from `main`. No image digest has been
-promoted to the cluster yet. The first approved implementation slice is
-portal/chat. Scratch hub and Scratch AI are separate later initiatives, so
+and publishes an immutable GHCR digest from `main`. The portal image is
+promoted to the cluster. The first implementation slice is portal/chat. Scratch hub and Scratch AI are separate later initiatives, so
 `/scratch` remains unavailable until the hub's own acceptance gate.
 
 The server-rendered launcher serves `/` with a chat destination and a disabled
@@ -13,10 +12,14 @@ served only after the same Access and session checks. The prefix proxy serves
 LibreChat under `/chat` on the same application origin. Authentik is the
 application identity provider on a separate Access-gated origin. Cloudflare
 Access admits only enumerated accounts, while Authentik groups determine
-application roles. Remote model traffic will use OpenRouter. These are approved
-design boundaries, not deployed behavior.
+application roles. Remote model traffic uses OpenRouter. The browser chat
+flow remains under verification.
 
-Deployment ownership is split: this repository builds source images, `deploys` pins workload digests, Orange renders the Argo CD Application and owns the cluster integration, and private inventory holds site identities. Runtime secrets arrive from OpenBao through ESO. The portal DNS record remains withheld until production behavior is verified and the operator approves publication.
+Deployment ownership is split: this repository builds source images,
+`deploys` pins workload digests, Orange renders the Argo CD Application and
+owns cluster integration, and private inventory holds site identities. Runtime
+secrets arrive from OpenBao through ESO. The portal DNS record is published
+under the operator-approved exception to the browser verification order.
 
 The [active initiative](https://github.com/hannosirkel/architecture/blob/main/initiatives/active/ai-portal.md) tracks what remains. The [boundary decision](../decisions/001-portal-boundaries.md) explains the local application design.
 
@@ -24,8 +27,11 @@ The ASGI entry point binds a validated Authentik ID token to the current
 Cloudflare Access subject and email. Its signed, HTTPS-only session expires
 after one hour, and direct `/chat` requests require a portal group. The chat
 card is unavailable without that group. `/scratch` stays denied. The chat
-proxy returns 503 until its LibreChat upstream is configured; it is not a
-deployed chat service.
+proxy strips the public `/chat` prefix before forwarding to LibreChat, which
+serves its assets and APIs at root. Its chat CSP allows only the two inline
+bootstrap script hashes from the pinned LibreChat image; review the hashes when
+that image changes. Only LibreChat's API receives browser bearer tokens;
+other chat paths and identity headers remain stripped before forwarding.
 
 The first chat release has transient LibreChat upload storage. The proxy
 rejects writes to LibreChat's file and skill routes and conversation import,

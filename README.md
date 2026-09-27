@@ -2,7 +2,7 @@
 
 AI Portal is the application-source repository for a family AI workspace. The first release is a launcher and LibreChat at `/` and `/chat`. Separate planned releases add a Scratch-compatible project hub at `/scratch`, then controlled AI project edits.
 
-The cross-repository [active initiative](https://github.com/hannosirkel/architecture/blob/main/initiatives/active/ai-portal.md) defines the release gates and acceptance behavior. No runtime or image has shipped from this repository yet.
+The cross-repository [active initiative](https://github.com/hannosirkel/architecture/blob/main/initiatives/active/ai-portal.md) defines the release gates and acceptance behavior. The launcher and LibreChat images are deployed behind Cloudflare Access. Browser chat verification is in progress.
 
 ## Ownership
 
