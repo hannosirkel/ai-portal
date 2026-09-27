@@ -26,7 +26,7 @@ _HOP_HEADERS = frozenset(
         "host",
     }
 )
-_IDENTITY_HEADERS = frozenset({"forwarded", "authorization", "proxy-authorization"})
+_IDENTITY_HEADERS = frozenset({"forwarded", "proxy-authorization"})
 _COOKIE_PATH = re.compile(r"(?i)(^|;\s*)path=[^;]*")
 
 
@@ -72,7 +72,7 @@ def _upload_route(path: str) -> bool:
 
 
 class ChatProxy:
-    """Forward /chat requests while preserving the LibreChat base path."""
+    """Forward public /chat requests to LibreChat routes at its root."""
 
     def __init__(
         self,
@@ -133,6 +133,12 @@ class ChatProxy:
             name = name_bytes.decode("latin-1").lower()
             if not _safe_request_header(name, connection_tokens):
                 continue
+            if name == "authorization" and not (
+                request.scope["path"].startswith("/chat/api/")
+                and value_bytes.lower().startswith(b"bearer ")
+                and len(value_bytes) > len(b"bearer ")
+            ):
+                continue
             if name == "cookie":
                 cookies = [
                     part.strip() for part in value_bytes.decode("latin-1").split(";")
@@ -152,7 +158,9 @@ class ChatProxy:
         path = request.scope["path"]
         raw_path = request.scope.get("raw_path", path.encode("utf-8"))
         query = request.scope.get("query_string", b"")
-        target = self.origin + raw_path.decode("ascii")
+        # LibreChat v0.8.7 serves assets and APIs at its root. Its generated
+        # HTML uses <base href="/chat/"> for the browser-facing path.
+        target = self.origin + (raw_path[5:].decode("ascii") or "/")
         if query:
             target += "?" + query.decode("ascii")
         return target
@@ -178,7 +186,12 @@ class ChatProxy:
             if _safe_response_header(name.decode("latin-1").lower(), response_tokens)
         ]
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+            # The pinned LibreChat v0.8.7 image emits two stable inline startup
+            # scripts. Permit their exact hashes without allowing arbitrary inline JS.
+            "default-src 'self'; script-src 'self' "
+            "'sha256-ApRfxd0rLedfnw6ZDBJ3VtMvEqlMCVS8OkY8rahs7+Q=' "
+            "'sha256-oWye3rCVXoUhqUJ9AiI+/t+rzdB/PSKIhkv0zyf495w='; "
+            "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: blob: https:; font-src 'self' data:; "
             "connect-src 'self' wss:; object-src 'none'; base-uri 'self'; "
             "frame-ancestors 'none'"
@@ -189,7 +202,10 @@ class ChatProxy:
 
     async def forward(self, request: Request):
         path = request.scope["path"]
-        if path != "/chat" and not path.startswith("/chat/"):
+        raw_path = request.scope.get("raw_path", path.encode("utf-8"))
+        if (path != "/chat" and not path.startswith("/chat/")) or (
+            raw_path != b"/chat" and not raw_path.startswith(b"/chat/")
+        ):
             return PlainTextResponse("Not found", status_code=404)
         if request.method not in {"GET", "HEAD", "OPTIONS"} and _upload_route(path):
             return PlainTextResponse("Uploads unavailable", status_code=403)
