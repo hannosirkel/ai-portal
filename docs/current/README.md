@@ -32,6 +32,9 @@ serves its assets and APIs at root. Its chat CSP allows only the two inline
 bootstrap script hashes from the pinned LibreChat image; review the hashes when
 that image changes. Only LibreChat's API receives browser bearer tokens;
 other chat paths and identity headers remain stripped before forwarding.
+The proxy replaces client-supplied forwarding headers with its fixed HTTPS
+scheme indicator so LibreChat can issue a Secure OIDC session cookie across the
+internal HTTP hop. It confines that cookie to `/chat` in the browser.
 
 The first chat release has transient LibreChat upload storage. The proxy
 rejects writes to LibreChat's file and skill routes and conversation import,

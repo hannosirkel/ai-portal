@@ -143,6 +143,38 @@ class ChatProxyTests(unittest.IsolatedAsyncioTestCase):
                 await response.background()
         self.assertEqual(seen, ["/", "/", "/assets/index.js", "/api/config"])
 
+    async def test_oidc_session_cookie_gets_trusted_https_forwarding(self):
+        seen = []
+
+        def upstream(request):
+            seen.append(request)
+            headers = []
+            if request.headers.get("x-forwarded-proto") == "https":
+                headers.append(
+                    ("set-cookie", "connect.sid=state; Path=/; HttpOnly; Secure")
+                )
+            return httpx.Response(302, headers=headers)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(upstream)) as client:
+            proxy = ChatProxy("http://librechat:3080", client=client)
+            response = await proxy.forward(
+                self.request(
+                    path="/chat/oauth/openid",
+                    headers=[
+                        ("X-Forwarded-Proto", "http"),
+                        ("X-Forwarded-Host", "evil.example"),
+                    ],
+                )
+            )
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(seen[0].headers["x-forwarded-proto"], "https")
+            self.assertNotIn("x-forwarded-host", seen[0].headers)
+            self.assertEqual(
+                response.headers.getlist("set-cookie"),
+                ["connect.sid=state; Path=/chat; HttpOnly; Secure"],
+            )
+            await response.background()
+
     async def test_encoded_chat_prefix_is_rejected_before_upstream(self):
         seen = []
 
