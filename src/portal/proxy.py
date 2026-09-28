@@ -152,6 +152,9 @@ class ChatProxy:
                     headers.append((name, "; ".join(cookies)))
             elif name not in {"content-length", "accept-encoding"}:
                 headers.append((name_bytes, value_bytes))
+        # The public origin is HTTPS. LibreChat needs this trusted indicator
+        # to issue its Secure OIDC session cookie behind the HTTP cluster hop.
+        headers.append((b"x-forwarded-proto", b"https"))
         return headers
 
     def _target(self, request: Request) -> str:
