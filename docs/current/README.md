@@ -28,7 +28,10 @@ Cloudflare Access subject and email. Its signed, HTTPS-only session expires
 after one hour, and direct `/chat` requests require a portal group. The chat
 card is unavailable without that group. `/scratch` stays denied. The chat
 proxy strips the public `/chat` prefix before forwarding to LibreChat, which
-serves its assets and APIs at root. Its chat CSP allows only the two inline
+serves its assets and APIs at root. Authorized GET and HEAD requests to
+`/chat` or `/chat/` redirect to `/chat/c/new`, preserving query parameters, so
+login returns and launcher visits enter an explicit conversation route.
+Its chat CSP allows only the two inline
 bootstrap script hashes from the pinned LibreChat image; review the hashes when
 that image changes. Only LibreChat's API receives browser bearer tokens;
 other chat paths and identity headers remain stripped before forwarding.
