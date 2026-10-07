@@ -1,14 +1,14 @@
 # AI Portal
 
-AI Portal is the application-source repository for a family AI workspace. The first release is a launcher and LibreChat at `/` and `/chat`. Separate planned releases add a Scratch-compatible project hub at `/scratch`, then controlled AI project edits.
+AI Portal is the application-source repository for a family AI workspace. The first release is a launcher and LibreChat at `/` and `/chat`. Scratch is unimplemented. The separate [Scratch hub](https://github.com/hannosirkel/architecture/blob/main/initiatives/planned/scratch-hub/README.md) and [Scratch AI](https://github.com/hannosirkel/architecture/blob/main/initiatives/planned/scratch-ai/README.md) plans remain for later releases.
 
-The cross-repository [active initiative](https://github.com/hannosirkel/architecture/blob/main/initiatives/active/ai-portal.md) defines the release gates and acceptance behavior. The launcher and LibreChat images are deployed behind Cloudflare Access. Browser chat verification is in progress.
+The launcher and LibreChat are deployed behind Cloudflare Access. The portal/chat work item is closed in the [closeout record](https://github.com/hannosirkel/architecture/blob/c47daaf9d09b4cc9cca7431ebb04f0390d63d487/docs/evidence/ai-portal/2026-10-07-closeout.md). [Remaining verification](docs/issues/portal-chat-verification.md) records checks without demonstrated acceptance evidence.
 
 ## Ownership
 
 | Concern | Owner |
 | --- | --- |
-| Launcher, prefix proxy, Scratch source, tests, image builds | This repository |
+| Launcher, prefix proxy, tests, image builds; future Scratch source | This repository |
 | Kubernetes workloads and pinned image digests | `deploys` |
 | Argo CD Applications, cluster integration, backup, monitoring | `orange` |
 | Live identities and non-secret site choices | `orange-inventory` |
