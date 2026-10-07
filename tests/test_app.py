@@ -174,6 +174,47 @@ class PortalAppTests(unittest.TestCase):
         self.assertNotIn("x-authentik-groups", observed[0].headers)
         self.assertNotIn("portal_session", observed[0].headers.get("cookie", ""))
 
+    def test_chat_entry_redirects_to_conversation_after_authorization(self):
+        def upstream(request):
+            if request.url.path == "/c/new":
+                return httpx.Response(200, stream=httpx.ByteStream(b"conversation"))
+            return httpx.Response(200, stream=httpx.ByteStream(b"empty entry"))
+
+        peer = httpx.AsyncClient(transport=httpx.MockTransport(upstream))
+        try:
+            proxy = ChatProxy("http://librechat:3080", client=peer)
+            client, _ = self.make_client(chat_proxy=proxy)
+            for path in ("/chat", "/chat/"):
+                with self.subTest(path=path, state="unsigned"):
+                    self.assertEqual(client.get(path).status_code, 403)
+            client.get("/auth/callback", headers=self.access_headers())
+            for path in ("/chat", "/chat/", "/chat?model=example"):
+                for method in ("GET", "HEAD"):
+                    with self.subTest(path=path, method=method):
+                        response = client.request(
+                            method,
+                            path,
+                            headers=self.access_headers(),
+                            follow_redirects=False,
+                        )
+                        self.assertEqual(response.status_code, 302)
+                        expected = "/chat/c/new"
+                        if "?" in path:
+                            expected += "?model=example"
+                        self.assertEqual(response.headers["location"], expected)
+                response = client.get(path, headers=self.access_headers())
+                self.assertEqual(response.text, "conversation")
+            denied, _ = self.make_client(StubOIDCClient(groups=[]), chat_proxy=proxy)
+            denied.get("/auth/callback", headers=self.access_headers())
+            for path in ("/chat", "/chat/"):
+                self.assertEqual(
+                    denied.get(path, headers=self.access_headers()).status_code, 403
+                )
+        finally:
+            import asyncio
+
+            asyncio.run(peer.aclose())
+
     def test_callback_rejects_mismatched_email(self):
         client, _ = self.make_client(StubOIDCClient(email="other@example.com"))
         response = client.get("/auth/callback", headers=self.access_headers())

@@ -131,6 +131,13 @@ class PortalRuntime:
         if path == "/chat" or path.startswith("/chat/"):
             if self.chat_proxy is None:
                 return PlainTextResponse("Chat is not deployed", status_code=503)
+            if path in {"/chat", "/chat/"} and request.method in {"GET", "HEAD"}:
+                # Enter an explicit LibreChat route; its /chat/ browser basename
+                # does not match the bare /chat URL returned after OIDC login.
+                target = "/chat/c/new"
+                if request.url.query:
+                    target += "?" + request.url.query
+                return RedirectResponse(target, status_code=302)
             return await self.chat_proxy.forward(request)
         return PlainTextResponse("Not found", status_code=404)
 
