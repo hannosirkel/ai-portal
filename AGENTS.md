@@ -48,7 +48,7 @@ removes the rest.
 
 ## Purpose and boundaries
 
-This public repository owns AI Portal application source, tests, and immutable image builds. The approved cross-repository initiative is [`architecture/initiatives/active/ai-portal.md`](https://github.com/hannosirkel/architecture/blob/main/initiatives/active/ai-portal.md). Its first release is portal/chat; Scratch hub and Scratch AI are separate later initiatives.
+This public repository owns AI Portal application source, tests, and immutable image builds. The portal/chat work item is closed; see the [closeout record](https://github.com/hannosirkel/architecture/blob/c47daaf9d09b4cc9cca7431ebb04f0390d63d487/docs/evidence/ai-portal/2026-10-07-closeout.md). [Remaining verification](docs/issues/portal-chat-verification.md) is tracked separately. Scratch is unimplemented; [Scratch hub](https://github.com/hannosirkel/architecture/blob/main/initiatives/planned/scratch-hub/README.md) and [Scratch AI](https://github.com/hannosirkel/architecture/blob/main/initiatives/planned/scratch-ai/README.md) retain their own plans.
 
 `deploys` owns Kubernetes workload manifests and promoted image digests. Orange owns Argo CD Applications, Access/tunnel integration, backup, and monitoring. Private inventory owns live identities and non-secret site values. Secret values enter workloads only through OpenBao and ESO. Never commit a family identity, group membership, provider key, session, or private infrastructure value here.
 
